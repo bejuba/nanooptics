@@ -121,6 +121,15 @@ def fit_g2(tau, g2, g2_error, bgfactor=0.1, tau0=0, t_antibunch=1e-9, a_bunch=[]
     return result
 
 
+def timetrace(timestamp, integration_time=100e-3, counts_per_second=True):
+    bins = _np.floor_divide(timestamp[-1],integration_time)
+    counts, t = _np.histogram(timestamp[timestamp < integration_time*bins], bins=bins)
+    t = t[:-1]
+    if counts_per_second:
+        counts *= integration_time
+    return t, counts
+
+
 class TimeTagMeasurement:
     def __init__(self, pt2_filepath, g2_cutofftime=1e-6, g2_resolution=4e-12, chan0=0, chan1=1):
         self.header, self.channels, self.timestamps = _read_tcspc.read_pt2(pt2_filepath)
