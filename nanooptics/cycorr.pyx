@@ -112,14 +112,16 @@ cdef optcorr3(_np.ndarray[_np.uint8_t, ndim=1] channel,
                             g2[tau1-chan1_min][tau2-chan2_min] += 1
     return g2
 
-cpdef timetrace(_np.ndarray[_np.uint_t, ndim=2] arrivaltimes, _np.uint_t binwidth):
-    cdef DTYPE_t lengtharrivaltimes = len(arrivaltimes) - 1
-    trace_double = _np.zeros((int(arrivaltimes[-1, 1] / binwidth), 2))
-    cdef _np.ndarray[_np.uint_t, ndim=2] trace = trace_double.astype(_np.uint)
-    cdef _np.uint_t i
 
-    for i in range(lengtharrivaltimes):
-        trace[arrivaltimes[i, 1] / binwidth, arrivaltimes[i, 0]] += 1
-              
-    t = _np.arange(0, arrivaltimes[-1, 1] / binwidth, binwidth)
-    return t, trace
+## his has to be redone for second resolution
+# cpdef timetrace(_np.ndarray[_np.uint_t, ndim=2] arrivaltimes, _np.uint_t binwidth):
+#     cdef DTYPE_t lengtharrivaltimes = len(arrivaltimes) - 1
+#     trace_double = _np.zeros((int(arrivaltimes[-1, 1] / binwidth), 2))
+#     cdef _np.ndarray[_np.uint_t, ndim=2] trace = trace_double.astype(_np.uint)
+#     cdef _np.uint_t i
+#
+#     for i in range(lengtharrivaltimes):
+#         trace[arrivaltimes[i, 1] / binwidth, arrivaltimes[i, 0]] += 1
+#
+#     t = _np.arange(0, arrivaltimes[-1, 1] / binwidth, binwidth)
+#     return t, trace
