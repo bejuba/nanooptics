@@ -185,8 +185,9 @@ def read_pt2(s, records_per_split=_np.infty):
             t2_marker = _np.multiply(marker_mask, _np.bitwise_and(15, t2_time) + 1)
             t2_time = _np.uint64(t2_time)
             t2_time += _np.cumsum([t2_marker == 1], dtype=_np.uint64) * wraparound
-            _np.savez(s[:-3] + str(i), header=header, t2_channel=_np.uint8(t2_channel), t2_time=t2_time * resolution)
-    return header, _np.uint8(t2_channel), t2_time * resolution
+            t2_time = t2_time * resolution
+            _np.savez(s[:-3] + str(i), header=header, t2_channel=_np.uint8(t2_channel), t2_time=t2_time)
+    return header, _np.uint8(t2_channel), t2_time
 
 
 def read_pt3(s, records_per_split=_np.infty):
@@ -225,8 +226,9 @@ def read_pt3(s, records_per_split=_np.infty):
             t3_marker = _np.multiply(marker_mask, _np.bitwise_and(15, t3_time) + 1)
             t3_time = _np.uint64(t3_time)
             t3_time += _np.cumsum([t3_marker == 1], dtype=_np.uint64) * wraparound
-            _np.savez(s[:-4] + str(i), header=header, t3_channel=_np.uint8(t3_channel), t3_time=t3_time * resolution)
-    return header, t3_sync, _np.uint8(t3_channel), t3_time * resolution
+            t3_time = t3_time * resolution
+            _np.savez(s[:-4] + str(i), header=header, t3_channel=_np.uint8(t3_channel), t3_time=t3_time)
+    return header, t3_sync, _np.uint8(t3_channel), t3_time
 
 
 # THIS SHOULD BE IMPLEMENTED SOME TIME IN THE FUTURE :)
