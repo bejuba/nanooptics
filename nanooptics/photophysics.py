@@ -4,8 +4,8 @@ import lmfit as _lmfit
 import numpy as _np
 
 # import helper modules
-from . import read_tcspc as _read_tcspc
 from . import cycorr
+from . import read_tcspc as _read_tcspc
 
 
 def g2(tau, t_antibunch=10, a_bunch=None, t_bunch=None):
