@@ -1,3 +1,4 @@
+from cython.parallel import prange
 cimport cython
 import numpy as _np
 # "cimport" is used to import special compile-time information
@@ -5,14 +6,33 @@ import numpy as _np
 # currently part of the Cython distribution).
 cimport numpy as _np
 
-
 def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True):
     if channel.dtype != 'uint8':
         channel = _np.uint8(channel)
     timestamp = _np.uint64(timestamp / resolution)
-    cutofftime = _np.int64(cutofftime / resolution)
+    cutofftime = _np.int(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
     g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
+    g2_error = _np.sqrt(g2)
+    if normalize:
+        measurement_time = timestamp[-1]
+        counts0 = _np.sum([channel == 0])
+        counts1 = _np.sum([channel == 1])
+        norm_factor = (
+            ( measurement_time - cutofftime )
+            / ( counts0 * counts1 )
+        )
+        g2 = norm_factor * g2
+        g2_error = norm_factor * g2_error
+    return t, g2, g2_error
+
+def pcorr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True):
+    if channel.dtype != 'uint8':
+        channel = _np.uint8(channel)
+    timestamp = _np.uint64(timestamp / resolution)
+    cutofftime = _np.int(cutofftime / resolution)
+    t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
+    g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1]
@@ -31,14 +51,43 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
 @cython.wraparound(False)
 cdef optcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
              _np.ndarray[_np.uint64_t, ndim=1] timestamp,
-             _np.uint64_t cutofftime,
+             _np.int_t cutofftime,
              _np.int_t chan0=0,
              _np.int_t chan1=1):
     cdef _np.uint64_t last_t2_index = len(timestamp) - 1
-    cdef _np.uint_t i, j, tau
-    cdef g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
+    cdef int i, j, tau
+    cdef int[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
 
     for i in range(last_t2_index):
+        if channel[i] == chan0:
+            for j in range(i+1, last_t2_index):
+                tau = (timestamp[j] - timestamp[i])
+                if tau >= cutofftime:
+                    break
+                if channel[j] == chan1:
+                    g2_unnormalized[tau+cutofftime] += 1
+        elif channel[i] == chan1:
+            for j in range(i+1, last_t2_index):
+                tau = (timestamp[j] - timestamp[i])
+                if tau > cutofftime:
+                    break
+                if channel[j] == chan0:
+                    g2_unnormalized[cutofftime-tau] += 1
+    return g2_unnormalized
+
+@cython.cdivision
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef poptcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
+             _np.ndarray[_np.uint64_t, ndim=1] timestamp,
+             _np.int_t cutofftime,
+             _np.int_t chan0=0,
+             _np.int_t chan1=1):
+    cdef int last_t2_index = len(timestamp) - 1
+    cdef int i, j, tau
+    cdef int[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
+
+    for i in prange(last_t2_index, nogil=True):
         if channel[i] == chan0:
             for j in range(i+1, last_t2_index):
                 tau = (timestamp[j] - timestamp[i])
