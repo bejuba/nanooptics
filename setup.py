@@ -25,5 +25,8 @@ setup(name='nanooptics',
       install_requires=['cython', 'numpy', 'lmfit'],
       packages=find_packages(exclude=['examples*']),
       include_dirs=[np.get_include()],
-      ext_modules=cythonize([Extension('*', ['nanooptics/*.pyx'])]),
+      ext_modules=cythonize([Extension('*', ['nanooptics/*.pyx'],
+                                       libraries=["m"],
+                                       extra_compile_args=["-O3", "-ffast-math", "-march=native", "-fopenmp"],
+                                       extra_link_args=['-fopenmp'])])
       )
