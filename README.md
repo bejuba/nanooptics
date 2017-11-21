@@ -11,5 +11,5 @@ Therefore simply cloning and installing should just work
 ```
 git clone https://github.com/berndso/nanooptics.git
 
-pip install ./nanooptics
+python setup.py install
 ```
