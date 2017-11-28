@@ -10,7 +10,7 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
     if channel.dtype != 'uint8':
         channel = _np.uint8(channel)
     timestamp = _np.uint64(timestamp / resolution)
-    cutofftime = _np.int(cutofftime / resolution)
+    cutofftime = _np.uint64(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
     g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
@@ -30,7 +30,7 @@ def pcorr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=
     if channel.dtype != 'uint8':
         channel = _np.uint8(channel)
     timestamp = _np.uint64(timestamp / resolution)
-    cutofftime = _np.int(cutofftime / resolution)
+    cutofftime = _np.uint64(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
     g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
@@ -51,12 +51,13 @@ def pcorr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=
 @cython.wraparound(False)
 cdef optcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
              _np.ndarray[_np.uint64_t, ndim=1] timestamp,
-             _np.int_t cutofftime,
+             _np.uint64_t cutofftime,
              _np.int_t chan0=0,
              _np.int_t chan1=1):
     cdef _np.uint64_t last_t2_index = len(timestamp) - 1
-    cdef int i, j, tau
-    cdef int[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
+    cdef int i, j
+    cdef _np.uint64_t tau
+    cdef _np.uint64_t g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
 
     for i in range(last_t2_index):
         if channel[i] == chan0:
@@ -80,12 +81,13 @@ cdef optcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
 @cython.wraparound(False)
 cdef poptcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
              _np.ndarray[_np.uint64_t, ndim=1] timestamp,
-             _np.int_t cutofftime,
+             _np.uint64_t cutofftime,
              _np.int_t chan0=0,
              _np.int_t chan1=1):
     cdef int last_t2_index = len(timestamp) - 1
-    cdef int i, j, tau
-    cdef int[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
+    cdef int i, j
+    cdef _np.uint64_t tau
+    cdef _np.uint64_t [:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
 
     for i in prange(last_t2_index, nogil=True):
         if channel[i] == chan0:
@@ -150,13 +152,131 @@ cdef optcorr3(_np.ndarray[_np.uint8_t, ndim=1] channel,
         if channel[i] == chan0:
             for j in range(i+1, last_t2_index):
                 tau1 = timestamp[j] - timestamp[i]
-                if ( (tau1 < chan1_min) or (tau1 >= chan1_max) ):
+                if (tau1 < chan1_min) or (tau1 >= chan1_max):
                     break
                 elif channel[j] == chan1:
                     for k in range(j+1, last_t2_index):
                         tau2 = timestamp[k] - timestamp[i]
-                        if ( (tau2 < chan2_min) or (tau2 >= chan2_max) ):
+                        if (tau2 < chan2_min) or (tau2 >= chan2_max):
                             break
                         elif channel[k] == chan2:
                             g2[tau1-chan1_min][tau2-chan2_min] += 1
     return g2
+
+
+
+def timefilter(channel, timestamp, cutoff, resolution, syncchan,
+               chan1,
+               chan1_min,
+               chan1_max,
+               chan2,
+               chan2_min,
+               chan2_max):
+    if channel.dtype != 'uint8':
+        channel = _np.uint8(channel)
+    cutoff = _np.uint64(cutoff / resolution)
+    timestamp = _np.uint64(timestamp / resolution)
+    chan, tt = cytimefilter(channel,
+                          timestamp,
+                            cutoff,
+                          syncchan,
+                          chan1,
+                          chan1_min,
+                          chan1_max,
+                          chan2,
+                          chan2_min,
+                          chan2_max)
+    return chan, tt * resolution
+
+
+@cython.cdivision
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef cytimefilter(_np.ndarray[_np.uint8_t, ndim=1] channel,
+             _np.ndarray[_np.uint64_t, ndim=1] timestamp,
+             _np.int_t cutoff,
+             _np.int_t sync,
+             _np.int_t chan1,
+             _np.int_t chan1_min,
+             _np.int_t chan1_max,
+             _np.int_t chan2,
+             _np.int_t chan2_min,
+             _np.int_t chan2_max):
+    cdef _np.uint64_t last_t2_index = len(timestamp) - 1
+    cdef _np.uint_t i, j, tau
+
+    for i in range(last_t2_index):
+        if channel[i] == sync:
+            for j in range(i+1, last_t2_index):
+                if channel[j] == chan1:
+                    tau = timestamp[j] - timestamp[i]
+                    if tau > cutoff:
+                         break
+                    if (tau > chan1_min) or (tau < chan1_max):
+                        timestamp[j] = 0
+                elif channel[j] == chan2:
+                    tau = timestamp[j] - timestamp[i]
+                    if tau > cutoff:
+                         break
+                    if (tau > chan2_min) or (tau < chan2_max):
+                        timestamp[j] = 0
+
+        elif channel[i] == chan1:
+            for j in range(i+1, last_t2_index):
+                if channel[j] == sync:
+                    tau = timestamp[i] - timestamp[j]
+                    if tau < cutoff:
+                         break
+                    if (tau > chan1_min) or (tau < chan1_max):
+                        timestamp[i] = 0
+
+        elif channel[i] == chan2:
+            for j in range(i+1, last_t2_index):
+                if channel[j] == sync:
+                    tau = timestamp[i] - timestamp[j]
+                    if tau < cutoff:
+                         break
+                    if (tau > chan2_min) or (tau < chan2_max):
+                        timestamp[i] = 0
+
+
+    mask = timestamp != 0
+    return channel[mask], timestamp[mask]
+
+
+
+@cython.cdivision
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef cytimefilter(_np.ndarray[_np.uint8_t, ndim=1] channel,
+             _np.ndarray[_np.uint64_t, ndim=1] timestamp,
+             _np.int_t cutoff,
+             _np.int_t sync,
+             _np.int_t chan1,
+             _np.int_t chan1_min,
+             _np.int_t chan1_max,
+             _np.int_t chan2,
+             _np.int_t chan2_min,
+             _np.int_t chan2_max):
+    cdef _np.uint64_t last_t2_index = len(timestamp) - 1
+    cdef _np.uint_t i, j
+    cdef _np.uint64_t tau
+    cdef _np.uint64[:] timediff = timestamp
+
+    for i in range(last_t2_index):
+        if channel[i] == sync:
+            for j in range(i+1, last_t2_index):
+                if channel[j] == chan1:
+                    tau = timestamp[j] - timestamp[i]
+                    if tau > cutoff:
+                         break
+                    if (tau > chan1_min) or (tau < chan1_max):
+                        timestamp[j] = 0
+                elif channel[j] == chan2:
+                    tau = timestamp[j] - timestamp[i]
+                    if tau > cutoff:
+                         break
+                    if (tau > chan2_min) or (tau < chan2_max):
+                        timestamp[j] = 0
+    mask = timestamp != 0
+    return channel[mask], timestamp[mask]
