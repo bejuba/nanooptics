@@ -37,21 +37,21 @@ cdef optcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
              _np.uint64_t cutofftime,
              _np.int_t chan0=0,
              _np.int_t chan1=1):
-    cdef _np.uint64_t last_t2_index = len(timestamp) - 1
+    cdef int timestamp_len = len(timestamp)
     cdef int i, j
     cdef _np.uint64_t tau
-    cdef _np.uint64_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int64)
+    cdef _np.uint64_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.uint64)
 
-    for i in range(last_t2_index):
+    for i in range(timestamp_len):
         if channel[i] == chan0:
-            for j in range(i+1, last_t2_index):
+            for j in range(i+1, timestamp_len):
                 tau = (timestamp[j] - timestamp[i])
                 if tau >= cutofftime:
                     break
                 if channel[j] == chan1:
                     g2_unnormalized[tau+cutofftime] += 1
         elif channel[i] == chan1:
-            for j in range(i+1, last_t2_index):
+            for j in range(i+1, timestamp_len):
                 tau = timestamp[j] - timestamp[i]
                 if tau > cutofftime:
                     break
@@ -67,21 +67,21 @@ cdef poptcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
              _np.uint64_t cutofftime,
              _np.int_t chan0=0,
              _np.int_t chan1=1):
-    cdef int last_t2_index = len(timestamp) - 1
+    cdef int timestamp_len = len(timestamp)
     cdef int i, j
     cdef _np.uint64_t tau
-    cdef _np.uint64_t [:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.int32)
+    cdef _np.uint64_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.uint64)
 
-    for i in prange(last_t2_index, nogil=True):
+    for i in prange(timestamp_len, nogil=True):
         if channel[i] == chan0:
-            for j in range(i+1, last_t2_index):
+            for j in range(i+1, timestamp_len):
                 tau = (timestamp[j] - timestamp[i])
                 if tau >= cutofftime:
                     break
                 if channel[j] == chan1:
                     g2_unnormalized[tau+cutofftime] += 1
         elif channel[i] == chan1:
-            for j in range(i+1, last_t2_index):
+            for j in range(i+1, timestamp_len):
                 tau = (timestamp[j] - timestamp[i])
                 if tau > cutofftime:
                     break
@@ -98,10 +98,10 @@ def corr3(channel,
     if channel.dtype != 'uint8':
         channel = _np.uint8(channel)
     timestamp = _np.uint64(timestamp / resolution)
-    chan1_min = _np.int64(chan1_min / resolution)
-    chan1_max = _np.int64(chan1_max / resolution)
-    chan2_min = _np.int64(chan2_min / resolution)
-    chan2_max = _np.int64(chan2_max / resolution)
+    chan1_min = _np.uint64(chan1_min / resolution)
+    chan1_max = _np.uint64(chan1_max / resolution)
+    chan2_min = _np.uint64(chan2_min / resolution)
+    chan2_max = _np.uint64(chan2_max / resolution)
     g2 = optcorr3(channel,
                   timestamp,
                   chan0,
@@ -118,27 +118,28 @@ def corr3(channel,
 @cython.cdivision
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef optcorr3(_np.ndarray[_np.uint8_t, ndim=1] channel,
+cdef optcorr3(_np.ndarray[_np.int_t, ndim=1] channel,
              _np.ndarray[_np.uint64_t, ndim=1] timestamp,
              _np.int_t chan0,
              _np.int_t chan1,
-             _np.int_t chan1_min,
-             _np.int_t chan1_max,
+             _np.uint64_t chan1_min,
+             _np.uint64_t chan1_max,
              _np.int_t chan2,
-             _np.int_t chan2_min,
-             _np.int_t chan2_max):
-    cdef _np.uint64_t last_t2_index = len(timestamp) - 1
-    cdef _np.uint_t i, j, k, tau1, tau2
-    cdef g2 = _np.zeros((chan1_max - chan1_min, chan2_max - chan2_min), dtype=_np.int)
+             _np.uint64_t chan2_min,
+             _np.uint64_t chan2_max):
+    cdef int timestamp_len = len(timestamp)
+    cdef int i, j, k
+    cdef _np.uint64_t tau1, tau2
+    cdef _np.ndarray[_np.uint64_t, ndim=2] g2 = _np.zeros((chan1_max - chan1_min, chan2_max - chan2_min), dtype=_np.uint64)
 
-    for i in range(last_t2_index):
+    for i in range(timestamp_len):
         if channel[i] == chan0:
-            for j in range(i+1, last_t2_index):
+            for j in range(i+1, timestamp_len):
                 tau1 = timestamp[j] - timestamp[i]
                 if (tau1 < chan1_min) or (tau1 >= chan1_max):
                     break
                 elif channel[j] == chan1:
-                    for k in range(j+1, last_t2_index):
+                    for k in range(j+1, timestamp_len):
                         tau2 = timestamp[k] - timestamp[i]
                         if (tau2 < chan2_min) or (tau2 >= chan2_max):
                             break
@@ -174,7 +175,7 @@ def syncdiff(channel, timestamp, syncchan, reverse=False):
 cdef cysyncdiff(_np.ndarray[_np.uint8_t, ndim=1] channel,
                 _np.ndarray[_np.double_t, ndim=1] timestamp,
                 _np.uint8_t syncchan):
-    cdef _np.uint64_t last_t2_index = len(timestamp)
+    cdef _np.int_t last_t2_index = len(timestamp)
     cdef _np.int_t i
     cdef _np.double_t lastsync = timestamp[0]
     cdef _np.double_t[:] timediff = timestamp.copy()
