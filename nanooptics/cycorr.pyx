@@ -6,33 +6,16 @@ import numpy as _np
 # currently part of the Cython distribution).
 cimport numpy as _np
 
-def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True):
+def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True, parallelize = True):
     if channel.dtype != 'uint8':
         channel = _np.uint8(channel)
     timestamp = _np.uint64(timestamp / resolution)
     cutofftime = _np.uint64(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
-    g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
-    g2_error = _np.sqrt(g2)
-    if normalize:
-        measurement_time = timestamp[-1]
-        counts0 = _np.sum([channel == 0])
-        counts1 = _np.sum([channel == 1])
-        norm_factor = (
-            ( measurement_time - cutofftime )
-            / ( counts0 * counts1 )
-        )
-        g2 = norm_factor * g2
-        g2_error = norm_factor * g2_error
-    return t, g2, g2_error
-
-def pcorr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True):
-    if channel.dtype != 'uint8':
-        channel = _np.uint8(channel)
-    timestamp = _np.uint64(timestamp / resolution)
-    cutofftime = _np.uint64(cutofftime / resolution)
-    t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
-    g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
+    if parallelize:
+        g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
+    else:
+        g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1]
