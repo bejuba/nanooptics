@@ -19,8 +19,8 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
     g2_error = _np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1]
-        counts0 = _np.sum([channel == 0])
-        counts1 = _np.sum([channel == 1])
+        counts0 = _np.sum([channel == chan0])
+        counts1 = _np.sum([channel == chan1])
         norm_factor = (
             ( measurement_time - cutofftime )
             / ( counts0 * counts1 )
