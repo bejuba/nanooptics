@@ -14,6 +14,7 @@
 # synchronization requirements such as image scanning.
 
 import numpy as _np
+import time
 
 
 def read_picoquant_header_legacy(fid):
@@ -214,7 +215,7 @@ def read_ptu_header(fid):
         elif tag_type == 'tyBool8':
             tag_value = bool(tag_value)
         elif tag_type == 'tyTDateTime':
-            tag_value = _np.uint64(tag_value).view(_np.float64)
+            tag_value = convert_ptu_time(_np.uint64(tag_value).view(_np.float64))
 
         # Some tag types have additional tag_data
         if tag_type == 'tyAnsiString':
@@ -325,3 +326,12 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
             if save_as_npz:
                 _np.savez(s[:-4] + str(i), header=header, data=data)
         return header, data
+
+
+def convert_ptu_time(tdatetime):
+    """Convert the time used in PTU files to something printable."""
+    epoch_diff = 25569  # days between 30/12/1899 and 01/01/1970
+    secs_in_day = 86400  # number of seconds in a day
+    t = time.gmtime((tdatetime - epoch_diff) * secs_in_day)
+    t = time.strftime("%Y/%m/%d %H:%M:%S", t)
+    return t
