@@ -13,9 +13,9 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
     cutofftime = _np.uint64(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
     if parallelize:
-        g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
-    else:
         g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
+    else:
+        g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1]
