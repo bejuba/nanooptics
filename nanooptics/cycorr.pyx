@@ -13,17 +13,19 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
     cutofftime = _np.uint64(cutofftime / resolution)
     t = (_np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
     if parallelize:
-        g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
-    else:
         g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
+    else:
+        g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = _np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1]
-        counts0 = _np.sum([channel == 0])
-        counts1 = _np.sum([channel == 1])
+        counts0 = _np.sum([channel == chan0])
+        counts1 = _np.sum([channel == chan1])
+        # by default the result of _np.sum is an int32 this can lead to overflows when multiplying large count numbers
+        # so we cast them to double to prevent this problem.
         norm_factor = (
             ( measurement_time - cutofftime )
-            / ( counts0 * counts1 )
+            / ( _np.double(counts0) * _np.double(counts1) )
         )
         g2 = norm_factor * g2
         g2_error = norm_factor * g2_error
@@ -40,7 +42,7 @@ cdef optcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
     cdef int timestamp_len = len(timestamp)
     cdef int i, j
     cdef _np.uint64_t tau
-    cdef _np.uint64_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.uint64)
+    cdef _np.double_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.double)
 
     for i in range(timestamp_len):
         if channel[i] == chan0:
@@ -70,7 +72,7 @@ cdef poptcorr(_np.ndarray[_np.uint8_t, ndim=1] channel,
     cdef int timestamp_len = len(timestamp)
     cdef int i, j
     cdef _np.uint64_t tau
-    cdef _np.uint64_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.uint64)
+    cdef _np.double_t[:] g2_unnormalized = _np.zeros(2 * cutofftime, dtype=_np.double)
 
     for i in prange(timestamp_len, nogil=True):
         if channel[i] == chan0:

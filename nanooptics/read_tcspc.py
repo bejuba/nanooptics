@@ -12,14 +12,13 @@
 # in the file slightly out of order with respect to regular (photon) event records.
 # This is by design. Markers are designed only for relatively coarse
 # synchronization requirements such as image scanning.
-import sys
-import getopt
+
 import numpy as _np
 
 
-def read_picoquant_header(fid):
+def read_picoquant_header_legacy(fid):
     """
-    read a picoharp data file header.
+    read a picoharp legacy data file header.
     :param fid: input file handle
     :return: file header
     """
@@ -29,15 +28,15 @@ def read_picoquant_header(fid):
     t_mode_header = dict()
 
     # read ascii header
-    ascii_header['Identifier'] = fid.read(16).decode('utf-8')
-    ascii_header['Format Version'] = fid.read(6).decode('utf-8')
-    if ascii_header['Format Version'][:3] != '2.0':
+    ascii_header['Identifier'] = fid.read(16).decode('utf-8').replace('\x00', '')
+    ascii_header['Format Version'] = fid.read(6).decode('utf-8').replace('\x00', '')
+    if ascii_header['Format Version'] != '2.0':
         print('Warning: This program is for version 2.0 files only.')
-    ascii_header['Creator Name'] = fid.read(18).decode('utf-8')
-    ascii_header['Creator Version'] = fid.read(12).decode('utf-8')
-    ascii_header['File Time'] = fid.read(18).decode('utf-8')
-    ascii_header['CRLF'] = fid.read(2).decode('utf-8')
-    ascii_header['Comment'] = fid.read(256).decode('utf-8')
+    ascii_header['Creator Name'] = fid.read(18).decode('utf-8').replace('\x00', '')
+    ascii_header['Creator Version'] = fid.read(12).decode('utf-8').replace('\x00', '')
+    ascii_header['File Time'] = fid.read(18).decode('utf-8').replace('\x00', '')
+    ascii_header['CRLF'] = fid.read(2).decode('utf-8').replace('\x00', '')
+    ascii_header['Comment'] = fid.read(256).decode('utf-8').replace('\x00', '')
 
     # read binary header
     binary_header['Curves'], = _np.fromfile(fid, count=1, dtype=_np.int32)
@@ -76,11 +75,11 @@ def read_picoquant_header(fid):
     binary_header['Repeats per Curve'], = _np.fromfile(fid, count=1, dtype=_np.int32)
     binary_header['Repeat Time'], = _np.fromfile(fid, count=1, dtype=_np.int32)
     binary_header['Repeat Wait Time'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Script Name'] = fid.read(20).decode('utf-8')
+    binary_header['Script Name'] = fid.read(20).decode('utf-8').replace('\x00', '')
 
     # read board specific header
-    board_header['Hardware Identifier'] = fid.read(16).decode('utf-8')
-    board_header['Hardware Version'] = fid.read(8).decode('utf-8')
+    board_header['Hardware Identifier'] = fid.read(16).decode('utf-8').replace('\x00', '')
+    board_header['Hardware Version'] = fid.read(8).decode('utf-8').replace('\x00', '')
     board_header['Hardware Serial'], = _np.fromfile(fid, count=1, dtype=_np.int32)
     board_header['Sync Divider'], = _np.fromfile(fid, count=1, dtype=_np.int32)
     board_header['CFD ZeroCross (Ch0) / mV'], = _np.fromfile(fid, count=1, dtype=_np.int32)
@@ -151,132 +150,178 @@ def read_picoquant_header(fid):
     return header
 
 
-def read_pt2(s, records_per_split=_np.infty):
+def read_ptu_header(fid):
     """
-    read a picoharp t2 mode .pt2 data file.
-    :param s: string of the  input file path, max_memory
-    :param records_per_split: split the file every after a number of records and save to disk to conserve memory
-    :return: file header dict, channel numpy array, timestamp numpy array
+    read a picoharp .ptu data file header.
+    :param fid: input file handle
+    :return: file header
     """
+    # Tag Types
+    tag_types = {
+        0xFFFF0008: 'tyEmpty8',
+        0x00000008: 'tyBool8',
+        0x10000008: 'tyInt8',
+        0x11000008: 'tyBitSet64',
+        0x12000008: 'tyColor8',
+        0x20000008: 'tyFloat8',
+        0x21000008: 'tyTDateTime',
+        0x2001FFFF: 'tyFloat8Array',
+        0x4001FFFF: 'tyAnsiString',
+        0x4002FFFF: 'tyWideString',
+        0xFFFFFFFF: 'tyBinaryBlob'
+    }
+
+    # Record Types
+    rec_types = {
+        0x00010303: 'rtPicoHarpT3',
+        0x00010203: 'rtPicoHarpT2',
+        0x00010304: 'rtHydraHarpT3',
+        0x00010204: 'rtHydraHarpT2',
+        0x01010304: 'rtHydraHarp2T3',
+        0x01010204: 'rtHydraHarp2T2',
+        0x00010305: 'rtTimeHarp260NT3',
+        0x00010205: 'rtTimeHarp260NT2',
+        0x00010306: 'rtTimeHarp260PT3',
+        0x00010206: 'rtTimeHarp260PT2'
+    }
+
+    header = dict()
+    magic = fid.read(8).decode('utf-8').replace('\x00', '')
+    if magic != 'PQTTTR':
+        raise IOError('Not a valid PTU file. '
+                      'Magic: '.format(magic))
+    header['Magic'] = magic
+    header['Version'] = fid.read(8).decode('utf-8').replace('\x00', '')
+
+    while True:
+        # read tag header
+        tag_ident = fid.read(32).decode('utf-8').replace('\x00', '')
+        tag_idx = _np.fromfile(fid, count=1, dtype=_np.int32)[0]
+        tag_type = tag_types[_np.fromfile(fid, count=1, dtype=_np.uint32)[0]]
+        tag_data = None
+
+        # most tag_value types are int64 but some are double
+        if (tag_type == 'tyFloat8') | (type == 'tyFloat8Array'):
+            dtype = _np.double
+        else:
+            dtype = _np.int64
+
+        tag_value = _np.fromfile(fid, count=1, dtype=dtype)[0]
+
+        # Some tag types need additional conversion
+        if tag_type == 'tyFloat8':
+            tag_value = _np.int64(tag_value).view(_np.float64)
+        elif tag_type == 'tyBool8':
+            tag_value = bool(tag_value)
+        elif tag_type == 'tyTDateTime':
+            tag_value = _np.uint64(tag_value).view(_np.float64)
+
+        # Some tag types have additional tag_data
+        if tag_type == 'tyAnsiString':
+            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
+        elif tag_type == 'tyFloat8Array':
+            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
+        elif tag_type == 'tyWideString':
+            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
+        elif tag_type == 'tyBinaryBlob':
+            tag_data = fid.read(tag_value)
+        if tag_ident == "Header_End":
+            break
+        header[tag_ident] = dict(tag_idx=tag_idx, tag_value=tag_value, tag_data=tag_data)
+
+    # convert to readable rec type
+    rec_type = rec_types[header['TTResultFormat_TTTRRecType']['tag_value']]
+    header['TTResultFormat_TTTRRecType']['tag_value'] = rec_type
+    return header
+
+
+def read_pt2_records(fid, records):
+    # Read the T2 mode event records
+    resolution = 4e-12  # 4ps is the standard max resolution of the picoharp
+    wraparound = _np.uint64(210698240)
+    t2_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
+    t2_time = _np.bitwise_and(268435455, t2_records)  # last 28 bits are the time stamp
+    t2_channel = _np.right_shift(t2_records, 28)  # first 4 bits are the channel
+    t2_channel = _np.uint8(t2_channel)  # first 4 bits are the channel
+    del t2_records
+    # if the channel is 15, then the record is special
+    marker_mask = t2_channel == 15
+    # For special records, the lowest 4 bits of the time stamp are actually marker bits
+    # if this is 0, the marker is an overflow marker
+    ofl_marker = marker_mask & (_np.bitwise_and(15, t2_time) == 0)
+    t2_time = _np.uint64(t2_time)
+    t2_time += _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
+    t2_time = t2_time * resolution
+    # remove overflows from data:
+    t2_channel = t2_channel[~ofl_marker]
+    t2_time = t2_time[~ofl_marker]
+    return [t2_channel, t2_time]
+
+
+def read_pt3_records(fid, records):
+    # Read the T3 mode event records
+    resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
+    wraparound = _np.uint64(65536)
+    t3_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
+    # for now the sync time stamp is ignored
+    # t3_sync = _np.bitwise_and(65535, t3_records)  # last 16 bits are the sync counter time stamp
+    t3_time = _np.bitwise_and(_np.right_shift(t3_records, 16), 4095)
+    t3_channel = _np.right_shift(t3_records, 28)  # first 4 bits are the channel
+    t3_channel = _np.uint8(t3_channel)
+    del t3_records  # free up unused memory
+    # if the channel is 15, then the record is special
+    marker_mask = t3_channel == 15
+    # For special records, the lowest 4 bits of the time stamp are actually marker bits
+    # if this is 0, the marker is an overflow marker
+    ofl_marker = marker_mask & (_np.bitwise_and(15, t3_time) == 0)
+    # remove overflows from data:
+    t3_channel=t3_channel[~ofl_marker]
+    t3_time = t3_time[~ofl_marker]
+    t3_time = t3_time * resolution
+    # ofl_correction = _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
+    # t3_sync = _np.uint64(t3_sync)
+    # t3_sync += ofl_correction
+    return [t3_channel, t3_time]
+
+
+def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
     with open(s, 'rb') as fid:
-        header = read_picoquant_header(fid)
-        number_of_records = header['T_mode']['Number of Records']
+        file_ending = s[-4:]
+        # read headers and number of records
+        if (file_ending == '.pt2') | (file_ending == '.pt3'):
+            header = read_picoquant_header_legacy(fid)
+            number_of_records = header['T_mode']['Number of Records']
+
+        elif file_ending == '.ptu':
+            header = read_ptu_header(fid)
+            number_of_records = header['TTResult_NumberOfRecords']['tag_value']
+        else:
+            print('not a valid file. Only .pt2, .pt3 and .ptu files are supported!')
+            return False
+
         if number_of_records <= records_per_split:
             records_to_read = [number_of_records]
         else:
             splits, remainder = divmod(number_of_records, records_per_split)
             records_to_read = [records_per_split]*splits + [remainder]
+            save_as_npz = True
+            print('Save output and split file into {} parts'.format(splits))
 
-        # Read the T2 mode event records
-        resolution = 4e-12  # 4 ps
-        wraparound = _np.uint64(210698240)
+        data = None
         for i, records in enumerate(records_to_read):
-            t2_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
-            t2_time = _np.bitwise_and(268435455, t2_records)  # last 28 bits are the g2_time stamp
-            t2_channel = _np.right_shift(t2_records, 28)  # first 4 bits are the channel
-            t2_channel = _np.uint8(t2_channel)  # first 4 bits are the channel
-            del t2_records
-            # if the channel is 15, then the record is special
-            marker_mask = t2_channel == 15
-            # For special records, the lowest 4 bits of the t2_time stamp are actually marker bits
-            # by multiplying the mask array with the (marker array + 1) we get 0 where there
-            # is no marker, ones where there is an overflow marker and values > 1, where there is
-            # a true marker. In this array the originally intended value of the true marker therefore
-            # is the true marker -1. We only add one because multiplying arrays in numpy is quite fast.
-            t2_marker = _np.multiply(marker_mask, _np.bitwise_and(15, t2_time) + 1)
-            t2_time = _np.uint64(t2_time)
-            t2_time += _np.cumsum([t2_marker == 1], dtype=_np.uint64) * wraparound
-            t2_time = t2_time * resolution
-            _np.savez(s[:-3] + str(i), header=header, t2_channel=t2_channel, t2_time=t2_time)
-    return header, t2_channel, t2_time
-
-
-def read_pt3(s, records_per_split=_np.infty):
-    """
-    read a picoharp t3 mode .pt3 data file.
-    :param s: string of the  input file path
-    :param records_per_split: split the file every after a number of records and save to disk to conserve memory
-    :return: file header dict, channel numpy array, timestamp numpy array
-    """
-    with open(s, 'rb') as fid:
-        header = read_picoquant_header(fid)
-        number_of_records = header['T_mode']['Number of Records']
-        if number_of_records <= records_per_split:
-            records_to_read = [number_of_records]
-        else:
-            splits, remainder = divmod(number_of_records, records_per_split)
-            records_to_read = [records_per_split]*splits + [remainder]
-            print('Split file into into {} output files'.format(splits))
-
-        # Read the T3 mode event records
-        resolution = 4e-12  # 4 ps
-        wraparound = _np.uint64(65536)
-        for i, records in enumerate(records_to_read):
-            t3_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
-            t3_sync = _np.bitwise_and(65535, t3_records)  # last 16 bits are the sync counter stamp
-            t3_time = _np.bitwise_and(_np.right_shift(t3_records, 16), 4095)
-            t3_channel = _np.right_shift(t3_records, 28)  # first 4 bits are the channel
-            t3_channel = _np.uint8(t3_channel)
-            del t3_records  # free up unused memory
-            # if the channel is 15, then the record is special
-            marker_mask = t3_channel == 15
-            # For special records, the lowest 4 bits of the t3_time stamp are actually marker bits
-            # by multiplying the mask array with the (marker array + 1) we get 0 where there
-            # is no marker, ones where there is an overflow marker and values > 1, where there is
-            # a true marker. In this array the originally intended value of the true marker therefore
-            # is the true marker -1. We only add one because multiplying arrays in numpy is quite fast.
-            t3_marker = _np.multiply(marker_mask, _np.bitwise_and(15, t3_time) + 1)
-            t3_time = _np.uint64(t3_time)
-            t3_time += _np.cumsum([t3_marker == 1], dtype=_np.uint64) * wraparound
-            t3_time = t3_time * resolution
-            _np.savez(s[:-4] + str(i), header=header, t3_channel=t3_channel, t3_time=t3_time)
-    return header, t3_sync, t3_channel, t3_time
-
-
-# THIS SHOULD BE IMPLEMENTED SOME TIME IN THE FUTURE :)
-#
-# def read_ptu(file):
-#     def hex2dec(s):
-#         """return the integer value of a hexadecimal string"""
-#         return int(s, 16)
-#     # some constants
-#     tyEmpty8      = hex2dec('FFFF0008')
-#     tyBool8       = hex2dec('00000008')
-#     tyInt8        = hex2dec('10000008')
-#     tyBitSet64    = hex2dec('11000008')
-#     tyColor8      = hex2dec('12000008')
-#     tyFloat8      = hex2dec('20000008')
-#     tyTDateTime   = hex2dec('21000008')
-#     tyFloat8Array = hex2dec('2001FFFF')
-#     tyAnsiString  = hex2dec('4001FFFF')
-#     tyWideString  = hex2dec('4002FFFF')
-#     tyBinaryBlob  = hex2dec('FFFFFFFF')
-#     # RecordTypes
-#     rtPicoHarpT3     = hex2dec('00010303')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $03 (T3), HW: $03 (PicoHarp)
-#     rtPicoHarpT2     = hex2dec('00010203')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $02 (T2), HW: $03 (PicoHarp)
-#     rtHydraHarpT3    = hex2dec('00010304')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $03 (T3), HW: $04 (HydraHarp)
-#     rtHydraHarpT2    = hex2dec('00010204')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $02 (T2), HW: $04 (HydraHarp)
-#     rtHydraHarp2T3   = hex2dec('01010304')# (SubID = $01 ,RecFmt: $01) (V2), T-Mode: $03 (T3), HW: $04 (HydraHarp)
-#     rtHydraHarp2T2   = hex2dec('01010204')# (SubID = $01 ,RecFmt: $01) (V2), T-Mode: $02 (T2), HW: $04 (HydraHarp)
-#     rtTimeHarp260NT3 = hex2dec('00010305')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $03 (T3), HW: $05 (TimeHarp260N)
-#     rtTimeHarp260NT2 = hex2dec('00010205')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $02 (T2), HW: $05 (TimeHarp260N)
-#     rtTimeHarp260PT3 = hex2dec('00010306')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $03 (T3), HW: $06 (TimeHarp260P)
-#     rtTimeHarp260PT2 = hex2dec('00010206')# (SubID = $00 ,RecFmt: $01) (V1), T-Mode: $02 (T2), HW: $06 (TimeHarp260P)
-#
-#     # Globals for subroutines
-#     TTResultFormat_TTTRRecType = 0
-#     TTResult_NumberOfRecords = 0
-#     MeasDesc_Resolution = 0
-#     MeasDesc_GlobalResolution = 0
-#
-#     with open(file, 'rb') as fid:
-#         magic = fid.read(8).decode('utf-8')
-#         if magic is not 'PQTTR':
-#             print('Magic invalid, this is not a PTU file.')
-#
-#         version = fid.read(8).decode('utf-8')
-#         print('Tag version: {}'.format(version))
-#
-#         #read tag head
-#         tag_ident = fid.read(8).decode('utf-8')
-#         tag_ident = tag_ident[tag_ident is not 0]
+            if file_ending == '.pt2':
+                data = read_pt2_records(fid, records)
+            if file_ending == '.pt3':
+                data = read_pt3_records(fid, records)
+            if file_ending == '.ptu':
+                rec_type = header['TTResultFormat_TTTRRecType']['tag_value']
+                if rec_type == 'rtPicoHarpT3':
+                    data = read_pt3_records(fid, records)
+                elif rec_type == 'rtPicoHarpT2':
+                    data = read_pt2_records(fid, records)
+                else:
+                    print('Illegal or not implemented RecordType')
+                    return False
+            if save_as_npz:
+                _np.savez(s[:-4] + str(i), header=header, data=data)
+        return header, data
