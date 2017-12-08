@@ -1,6 +1,4 @@
-# PicoHarp 300 file access in python
-# This script reads a PicoHarp T2 and T3 Mode data file and writes them to disk.
-# Works with file format version 2.0 only!
+# Read common PicoHarp data files and optionally write them to disk.
 # Based on the Original matlab and C code by
 # Peter Kapusta, Michael Wahl, PicoQuant GmbH 2006, updated May 2007
 # Converted to python by Bernd Sontheimer, Humboldt University Berlin, August 2017
@@ -17,7 +15,7 @@ import numpy as _np
 import time
 
 
-def read_picoquant_header_legacy(fid):
+def read_picoquant_legacy_header(fid):
     """
     read a picoharp legacy data file header.
     :param fid: input file handle
@@ -237,6 +235,12 @@ def read_ptu_header(fid):
 
 
 def read_pt2_records(fid, records):
+    """
+    read a picoharp T2 Mode records file header.
+    :param fid: input file handle
+    :param records: number of records to read
+    :return: data: record channel and timestamp numpy arrays
+    """
     # Read the T2 mode event records
     resolution = 4e-12  # 4ps is the standard max resolution of the picoharp
     wraparound = _np.uint64(210698240)
@@ -260,7 +264,12 @@ def read_pt2_records(fid, records):
 
 
 def read_pt3_records(fid, records):
-    # Read the T3 mode event records
+    """
+    read a picoharp T3 Mode records file header.
+    :param fid: input file handle
+    :param records: number of records to read
+    :return: data: record channel and timestamp numpy arrays
+    """
     resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
     wraparound = _np.uint64(65536)
     t3_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
@@ -286,11 +295,19 @@ def read_pt3_records(fid, records):
 
 
 def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
+    """
+    read a picoharp data files. As of now supported are .pt2 .pt3 and some .ptu files.
+    :param s: input file string.
+    :param records_per_split: big files may be split if they do not fit into memory.
+    if set, save_as_npz defaults to True.
+    :return: save_as_npz: default is False. if set True the data is written to .npz files in the same directory as a the
+    input file.
+    """
     with open(s, 'rb') as fid:
         file_ending = s[-4:]
         # read headers and number of records
         if (file_ending == '.pt2') | (file_ending == '.pt3'):
-            header = read_picoquant_header_legacy(fid)
+            header = read_picoquant_legacy_header(fid)
             number_of_records = header['T_mode']['Number of Records']
 
         elif file_ending == '.ptu':
@@ -329,7 +346,7 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
 
 
 def convert_ptu_time(tdatetime):
-    """Convert the time used in PTU files to something printable."""
+    """Convert the time used in PTU files to nice time string."""
     epoch_diff = 25569  # days between 30/12/1899 and 01/01/1970
     secs_in_day = 86400  # number of seconds in a day
     t = time.gmtime((tdatetime - epoch_diff) * secs_in_day)
