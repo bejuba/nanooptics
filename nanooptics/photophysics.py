@@ -132,7 +132,7 @@ def timetrace(timestamp, integration_time=100e-3, counts_per_second=True):
 
 class TimeTagMeasurement:
     def __init__(self, pt2_filepath, g2_cutofftime=1e-6, g2_resolution=4e-12, chan0=0, chan1=1):
-        self.header, self.channels, self.timestamps = _read_tcspc.read_pt2(pt2_filepath)
+        self.header, [self.channels, self.timestamps] = _read_tcspc.read_picoquant(pt2_filepath)
         self.g2_cutofftime = g2_cutofftime
         self.g2_resolution = g2_resolution
         self.g2_measurementTime = self.timestamps[-1]
@@ -192,9 +192,7 @@ class TimeTagMeasurement:
         self.g2_cutofftime = self.g2_unnormalized.size * self.g2_resolution
         self.normalize()
 
-    def bin_log(self, bins=250, offset=0):
-        self.g2_unnormalized = self.g2_unnormalized[int(offset / self.g2_resolution):]
-
+    def bin_log(self, bins=250):
         bin_time = _np.logspace(_np.log10(self.g2_resolution),
                                 _np.log10(self.g2_cutofftime),
                                 bins + 1
@@ -202,10 +200,7 @@ class TimeTagMeasurement:
         idx = _np.array(bin_time / self.g2_resolution, dtype=_np.int)
         idx = _np.unique(idx)
         bins = idx.size - 1
-        g2 = _np.zeros(bins)
-        for i in range(bins):
-            g2[i] = _np.sum(self.g2_unnormalized[idx[i]: idx[i + 1]])
-        self.g2_unnormalized = g2
+        self.g2_unnormalized = [_np.sum(self.g2_unnormalized[idx[i]: idx[i + 1]]) for i in range(bins)]
         self.g2_time = idx[:-1] * self.g2_resolution
         self.normalize()
 
