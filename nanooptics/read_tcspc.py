@@ -271,7 +271,7 @@ def read_pt3_records(fid, records):
     :return: data: record channel and timestamp numpy arrays
     """
     resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
-    wraparound = _np.uint64(65536)
+    # wraparound = _np.uint64(65536)
     t3_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
     # for now the sync time stamp is ignored
     # t3_sync = _np.bitwise_and(65535, t3_records)  # last 16 bits are the sync counter time stamp
@@ -285,7 +285,7 @@ def read_pt3_records(fid, records):
     # if this is 0, the marker is an overflow marker
     ofl_marker = marker_mask & (_np.bitwise_and(15, t3_time) == 0)
     # remove overflows from data:
-    t3_channel=t3_channel[~ofl_marker]
+    t3_channel = t3_channel[~ofl_marker]
     t3_time = t3_time[~ofl_marker]
     t3_time = t3_time * resolution
     # ofl_correction = _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
@@ -300,8 +300,10 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
     :param s: input file string.
     :param records_per_split: big files may be split if they do not fit into memory.
     if set, save_as_npz defaults to True.
-    :return: save_as_npz: default is False. if set True the data is written to .npz files in the same directory as a the
+    :param save_as_npz: default is False. if set True the data is written to .npz files in the same directory as a the
     input file.
+    :return header: dict of the file header information
+    :return data: data converted to list of numpy arrays. Entries are dependent on the input file
     """
     with open(s, 'rb') as fid:
         file_ending = s[-4:]
