@@ -260,7 +260,7 @@ def read_pt2_records(fid, records):
     # remove overflows from data:
     t2_channel = t2_channel[~ofl_marker]
     t2_time = t2_time[~ofl_marker]
-    return [t2_channel, t2_time]
+    return t2_channel, t2_time
 
 
 def read_pt3_records(fid, records):
@@ -291,7 +291,7 @@ def read_pt3_records(fid, records):
     # ofl_correction = _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
     # t3_sync = _np.uint64(t3_sync)
     # t3_sync += ofl_correction
-    return [t3_channel, t3_time]
+    return t3_channel, t3_time
 
 
 def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
