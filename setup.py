@@ -4,7 +4,7 @@ from Cython.Build import cythonize
 import numpy as np
 
 setup(name='nanooptics',
-      version='0.3',
+      version='0.4',
       description='Python module for data evaluation and presentation of numerous quantum optical experiments.',
       author='Bernd Sontheimer',
       author_email='bernd.sontheimer@physik.hu-berlin.de',
@@ -22,7 +22,7 @@ setup(name='nanooptics',
             'Programming Language :: Python :: 3.6',
       ],
       python_requires='>=3',
-      install_requires=['cython', 'numpy', 'lmfit', 'recordclass'],
+      install_requires=['cython', 'numpy', 'lmfit'],
       packages=find_packages(exclude=['examples*']),
       include_dirs=[np.get_include()],
       ext_modules=cythonize([Extension('*', ['nanooptics/*.pyx'],

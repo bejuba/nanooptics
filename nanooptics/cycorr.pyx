@@ -2,7 +2,6 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 cimport cython
-from recordclass import recordclass # for mutable named lists
 
 
 def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True, parallelize = True):
