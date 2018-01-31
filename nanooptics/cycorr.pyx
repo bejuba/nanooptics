@@ -2,7 +2,6 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 cimport cython
-from recordclass import recordclass # for mutable named lists
 
 
 def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True, parallelize = True):
@@ -28,7 +27,7 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
         )
         g2 = norm_factor * g2
         g2_error = norm_factor * g2_error
-    return np.rec.array([t, g2, g2_error], dtype=[('tau', float), ('g2', float), ('yerr', float)]
+    return np.rec.array([t, g2, g2_error], dtype=[('tau', float), ('g2', float), ('yerr', float)])
 
 @cython.cdivision
 @cython.boundscheck(False)
