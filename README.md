@@ -3,13 +3,15 @@ Python module for data evaluation and presentation developed in the nanooptics g
 
 ## installation
 The correlator makes heavy use of cython. Therefore those modules have to be compiled.
-The setup.py should take care of this when installing the module with pip
+The setup.py should take care of this when installing the module with pip or by executing the setup.py.
 
 Therefore simply cloning and installing should just work
 
 
 ```
 git clone https://github.com/berndso/nanooptics.git
+
+cd nanooptics
 
 python setup.py install
 ```
