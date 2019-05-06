@@ -337,9 +337,9 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
                 data = read_pt3_records(fid, records)
             if file_ending == '.ptu':
                 rec_type = header['TTResultFormat_TTTRRecType']['tag_value']
-                if rec_type == 'rtPicoHarpT3':
+                if rec_type in ['rtPicoHarpT3', 'rtMultiHarpNT3']:
                     data = read_pt3_records(fid, records)
-                elif rec_type == 'rtPicoHarpT2':
+                elif rec_type in ['rtPicoHarpT2','rtMultiHarpNT2']:
                     data = read_pt2_records(fid, records)
                 else:
                     print('Illegal or not implemented RecordType')
