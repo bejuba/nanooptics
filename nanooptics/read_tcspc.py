@@ -181,7 +181,9 @@ def read_ptu_header(fid):
         0x00010305: 'rtTimeHarp260NT3',
         0x00010205: 'rtTimeHarp260NT2',
         0x00010306: 'rtTimeHarp260PT3',
-        0x00010206: 'rtTimeHarp260PT2'
+        0x00010206: 'rtTimeHarp260PT2',
+        0x00010307: 'rtMultiHarpNT3',
+        0x00010207: 'rtMultiHarpNT2'
     }
 
     header = dict()
