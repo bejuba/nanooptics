@@ -14,7 +14,6 @@
 import numpy as _np
 import time
 
-
 def read_picoquant_legacy_header(fid):
     """
     read a picoharp legacy data file header.
@@ -236,67 +235,246 @@ def read_ptu_header(fid):
     return header
 
 
-def read_pt2_records(fid, records):
+def read_pt2_records(fid, nrecords):
     """
-    read a picoharp T2 Mode records file header.
+    read a picoharp T2 Mode records.
+    :param fid: input file handle
+    :param records: number of records to read
+    :return: data: record channel and timestamp numpy arrays
+    """
+
+    resolution = 4e-12  # 4ps is the standard max resolution of the picoharp
+    wraparound = _np.uint64(210698240)
+    
+    records = _np.fromfile(fid, count=nrecords, dtype=_np.uint32)  # each record is composed of 32 bits
+    # last 28 bits are the time stamp
+    time = _np.bitwise_and(int('00001111111111111111111111111111', base=2), records)  
+    time = _np.uint64(time)
+    # first 4 bits are the channel
+    channel = _np.right_shift(records, 28)  
+    channel = _np.uint8(channel)  
+    
+    del records
+    
+    # if the channel is 15, then the record is special
+    marker = channel == int('1111', base=2)
+    # For special records, the lowest 4 bits of the time stamp are actually marker bits
+    # if this is 0, the marker is an overflow marker
+    ofl = marker & (_np.bitwise_and(int('1111', base=2), time) == 0)
+    
+    marker_channel = _np.bitwise_and(int('1111', base=2), time[marker & ~ofl])
+    
+    time += _np.cumsum(ofl, dtype=_np.uint64) * wraparound
+    time = time * resolution
+    
+    marker_time = time[marker & ~ofl]
+    
+    # remove all markers from data:
+    channel = channel[~marker]
+    time = time[~marker]
+    
+    records = _np.rec.array([channel, time], 
+                            dtype=[('channel', _np.uint8),
+                                   ('timestamp', _np.float)])
+    markers = _np.rec.array([marker_channel, marker_time],
+                            dtype=[('marker', _np.uint8), 
+                                   ('timestamp', _np.float)])
+    return records, markers
+
+def read_pt3_records(fid, nrecords):
+    """
+    read a picoharp T3 Mode records.
+    :param fid: input file handle
+    :param records: number of records to read
+    :return: data: record channel and timestamp numpy arrays
+    """
+        
+    resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
+    
+    channel_bits = int('11110000000000000000000000000000', base=2)
+    dtime_bits   = int('00001111111111110000000000000000', base=2)
+    nsync_bits   = int('00000000000000001111111111111111', base=2)
+    
+    wraparound =  _np.uint64(nsync_bits+1)
+    
+    records = _np.fromfile(fid, count=nrecords, dtype=_np.uint32)
+   
+    channel = _np.bitwise_and(channel_bits, records)
+    channel = _np.uint8(_np.right_shift(channel, 28))
+    
+    dtime = _np.bitwise_and(dtime_bits, records)
+    dtime = _np.uint64(_np.right_shift(time, 16))
+    
+    nsync = _np.bitwise_and(nsync_bits, records)
+    nsync = _np.uint64(nsync)
+    
+    wraparound =  nsync_bits + 1
+
+    del records
+
+    # if the channel is 15, then the record is special
+    marker = channel == int('1111', base=2)
+    # For special records, the lowest 4 bits of the time stamp are actually marker bits
+    # if this is 0, the marker is an overflow marker
+    ofl = marker & (_np.bitwise_and(int('1111', base=2), nsync) == 0)
+    # remove overflows from data:
+    marker_channel = _np.bitwise_and(int('1111', base=2), dtime[marker & ~ofl])
+
+    nsync += _np.cumsum(ofl, dtype=_np.uint64) * wraparound
+    nsync = nsync * resolution
+    dtime = dtime * resolution
+    
+    channel = channel[~ofl]
+    nsync = nsync[~ofl]
+    nsync = nsync * resolution
+    
+    records = _np.rec.array([channel, nsync, dtime], 
+                            dtype=[('channel', _np.uint8), 
+                                   ('synctime', _np.float), 
+                                   ('dtime', _np.float)])
+    markers = _np.rec.array([marker_channel, marker_time],
+                            dtype=[('marker', _np.uint8),
+                                   ('timestamp', _np.float)])
+    return records, markers
+
+
+def read_ht2_records(fid, records, version, resolution):
+    """
+    read a hydraharp T2 Mode records.
     :param fid: input file handle
     :param records: number of records to read
     :return: data: record channel and timestamp numpy arrays
     """
     # Read the T2 mode event records
-    resolution = 4e-12  # 4ps is the standard max resolution of the picoharp
-    wraparound = _np.uint64(210698240)
-    t2_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
-    t2_time = _np.bitwise_and(268435455, t2_records)  # last 28 bits are the time stamp
-    t2_channel = _np.right_shift(t2_records, 28)  # first 4 bits are the channel
-    t2_channel = _np.uint8(t2_channel)  # first 4 bits are the channel
-    del t2_records
-    # if the channel is 15, then the record is special
-    marker_mask = t2_channel == 15
-    # For special records, the lowest 4 bits of the time stamp are actually marker bits
-    # if this is 0, the marker is an overflow marker
-    ofl_marker = marker_mask & (_np.bitwise_and(15, t2_time) == 0)
-    t2_time = _np.uint64(t2_time)
-    t2_time += _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
-    t2_time = t2_time * resolution
+
+    if resolution == 0:
+        resolution = 1e-12
+    if version == 1:
+        wraparound =  _np.uint64(33552000)
+    elif version == 2:
+        wraparound =  _np.uint64(33554432)
+    else: 
+        print('Error: Record Version {} not implemented!'.format(version))
+        return False
+    
+    special_bits = int('10000000000000000000000000000000', base=2)
+    channel_bits = int('01111110000000000000000000000000', base=2)
+    time_bits    = int('00000001111111111111111111111111', base=2)
+    
+    
+    records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
+    
+    special = _np.bitwise_and(special_bits, records)
+    special = special == special_bits
+    
+    channel = _np.bitwise_and(channel_bits, records)
+    channel = _np.uint8(_np.right_shift(channel, 25))
+    
+    time    = _np.bitwise_and(time_bits, records)
+    time = _np.uint64(time)
+    
+    del records
+    ofl = special * (channel == int('111111', base=2))
+    if (version == 2):
+        ofl = ofl * time
+    sync = special & (channel == 0) # all syncs will be in channel 0
+    marker = special & (channel >= 1) & (channel <= 15)
+
+    time += _np.cumsum(ofl, dtype=_np.uint64) * wraparound
+    time = time * resolution
+    
+    # extract markers
+    marker_channel = channel[marker]
+    marker_time = time[marker]
+   
+    # picoquant adds 1 to all non special event channels
+    channel += ~special
+
     # remove overflows from data:
-    t2_channel = t2_channel[~ofl_marker]
-    t2_time = t2_time[~ofl_marker]
-    return _np.rec.array([t2_channel, t2_time], dtype=[('channel', _np.uint8), ('timestamp', _np.float)])
+    channel = channel[~((ofl>0) | marker)]
+    time = time[~((ofl>0) | marker)]
+        
+    print('overflows: {}'.format(np.sum(ofl)))
+    print('syncs: {}'.format(np.sum(sync)))
+    print('markers: {}'.format(np.sum(marker)))
+    
+    records = _np.rec.array([channel, time], 
+                            dtype=[('channel', _np.uint8),
+                                   ('timestamp', _np.float)])
+    markers = _np.rec.array([marker_channel, marker_time],
+                            dtype=[('marker', _np.uint8), 
+                                   ('timestamp', _np.float)])
+    return records, markers
 
-
-def read_pt3_records(fid, records):
+def read_ht3_records(fid, records, version, resolution):
     """
-    read a picoharp T3 Mode records file header.
+    read a hydraharp T3 Mode records.
     :param fid: input file handle
     :param records: number of records to read
     :return: data: record channel and timestamp numpy arrays
     """
-    resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
-    # wraparound = _np.uint64(65536)
-    t3_records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
-    # for now the sync time stamp is ignored
-    # t3_sync = _np.bitwise_and(65535, t3_records)  # last 16 bits are the sync counter time stamp
-    t3_time = _np.bitwise_and(_np.right_shift(t3_records, 16), 4095)
-    t3_channel = _np.right_shift(t3_records, 28)  # first 4 bits are the channel
-    t3_channel = _np.uint8(t3_channel)
-    del t3_records  # free up unused memory
-    # if the channel is 15, then the record is special
-    marker_mask = t3_channel == 15
-    # For special records, the lowest 4 bits of the time stamp are actually marker bits
-    # if this is 0, the marker is an overflow marker
-    ofl_marker = marker_mask & (_np.bitwise_and(15, t3_time) == 0)
-    # remove overflows from data:
-    t3_channel = t3_channel[~ofl_marker]
-    t3_time = t3_time[~ofl_marker]
-    t3_time = t3_time * resolution
-    # ofl_correction = _np.cumsum(ofl_marker, dtype=_np.uint64) * wraparound
-    # t3_sync = _np.uint64(t3_sync)
-    # t3_sync += ofl_correction
-    return _np.rec.array([t3_channel, t3_time], dtype=[('channel', _np.uint8), ('timestamp', _np.float)])
+    
+    if resolution == 0:
+        resolution = 1e-12
+        
+    special_bits = int('10000000000000000000000000000000', base=2)
+    channel_bits = int('01111110000000000000000000000000', base=2)
+    dtime_bits   = int('00000001111111111111110000000000', base=2)
+    nsync_bits   = int('00000000000000000000001111111111', base=2)
+    
+    wraparound =  _np.uint64(nsync_bits+1)
+    
+    records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
 
+    special = _np.bitwise_and(special_bits, records)
+    special = special == special_bits
+    
+    channel = _np.bitwise_and(channel_bits, records)
+    channel = _np.uint8(_np.right_shift(channel, 25))
+    
+    dtime = _np.bitwise_and(dtime_bits, records)
+    dtime = _np.uint64(_np.right_shift(time, 10))
+    
+    nsync = _np.bitwise_and(nsync_bits, records)
+    nsync = _np.uint64(nsync)
 
-def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
+    del records
+    
+    ofl = special * (channel == int('111111', base=2))
+    if (version == 2):
+        ofl[(nsync==0) & (ofl>0)] += 1 
+        ofl = ofl * nsync 
+    marker = special & (channel >= 1) & (channel <= 15)
+    
+    nsync += _np.cumsum(ofl, dtype=_np.uint64) * wraparound
+    nsync = nsync * resolution
+    dtime = dtime * resolution
+    
+    marker_channel = dtime[marker]
+    marker_time = nsync[marker]
+    
+    # picoquant adds 1 to all non special event channels
+    channel += ~special
+    # remove overflows and markers from data:
+    channel = channel[~((ofl>0) | marker)]
+    nsync = time[~((ofl>0) | marker)]
+
+    print('overflows: {}'.format(np.sum(ofl)))
+    print('syncs: {}'.format(np.sum(sync)))
+    print('markers: {}'.format(np.sum(marker)))
+    
+    records = _np.rec.array([channel, nsync, dtime], 
+                            dtype=[('channel', _np.uint8), 
+                                   ('synctime', _np.float), 
+                                   ('dtime', _np.float)])
+    markers = _np.rec.array([marker_channel, marker_time],
+                            dtype=[('marker', _np.uint8),
+                                   ('timestamp', _np.float)])
+    
+    return records, markers
+
+    
+def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False, ignore_markers=True):
     """
     read a picoharp data files. As of now supported are .pt2 .pt3 and some .ptu files.
     :param s: input file string.
@@ -317,6 +495,7 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
         elif file_ending == '.ptu':
             header = read_ptu_header(fid)
             number_of_records = header['TTResult_NumberOfRecords']['tag_value']
+            resolution = header['MeasDesc_GlobalResolution']['tag_value']
         else:
             print('not a valid file. Only .pt2, .pt3 and .ptu files are supported!')
             return False
@@ -332,21 +511,44 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False):
         data = None
         for i, records in enumerate(records_to_read):
             if file_ending == '.pt2':
-                data = read_pt2_records(fid, records)
+                [records, markers] = read_pt2_records(fid, records)
             if file_ending == '.pt3':
-                data = read_pt3_records(fid, records)
+                [records, markers] = read_pt3_records(fid, records)
             if file_ending == '.ptu':
                 rec_type = header['TTResultFormat_TTTRRecType']['tag_value']
-                if rec_type in ['rtPicoHarpT3', 'rtMultiHarpNT3']:
-                    data = read_pt3_records(fid, records)
-                elif rec_type in ['rtPicoHarpT2','rtMultiHarpNT2']:
-                    data = read_pt2_records(fid, records)
+                if rec_type == 'rtPicoHarpT3':
+                    [records, markers] = read_pt3_records(fid, records)
+                elif rec_type == 'rtPicoHarpT2':
+                    [records, markers] = read_pt2_records(fid, records)
+                    
+                elif rec_type in ['rtHydraHarpT3']:
+                    [records, markers] = read_ht3_records(fid, records, 1, resolution)                    
+                elif rec_type in ['rtHydraHarp2T3',
+                                  'rtTimeHarp260NT3',
+                                  'rtTimeHarp260PT3',
+                                  'rtMultiHarpNT3']:
+                    [records, markers] = read_ht3_records(fid, records, 2, resolution)
+                
+                elif rec_type in ['rtHydraHarpT2']:
+                    [records, markers] = read_ht2_records(fid, records, 1, resolution)
+                elif rec_type in ['rtHydraHarp2T2',
+                                  'rtTimeHarp260NT2',
+                                  'rtTimeHarp260PT2',
+                                  'rtMultiHarpNT2']:
+                    [records, markers] = read_ht2_records(fid, records, 2, resolution)
                 else:
                     print('Illegal or not implemented RecordType')
                     return False
             if save_as_npz:
-                _np.savez(s[:-4] + str(i), header=header, data=data)
-        return header, data
+                _np.savez(s[:-4] + str(i), header=header, records=records, markers=markers)
+        if ignore_markers:
+            if markers.size > 0:
+                print('Warning: There are markers in the file, but they are ignored, \
+run with ignore_markers=False to get them')
+            return header, records
+        else:
+            return header, records, markers
+
 
 
 def convert_ptu_time(tdatetime):
