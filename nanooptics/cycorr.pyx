@@ -149,19 +149,19 @@ cdef optcorr3(np.ndarray[np.int_t, ndim=1] channel,
 
 
 def syncdiff(channel, timestamp, syncchan, reverse=False):
-    if channel.dtype != np.uint8:
-        channel = np.uint8(channel)
-        print('internally converted channel to uint8 for cython')
-    if timestamp.dtype != np.double:
-        timestamp = np.double(timestamp)
-        print('internally converted timestamp to double for cython')
+    if channel.dtype != np.int32:
+        channel = np.int32(channel)
+        print('internally converted channel to int32 for cython')
+    if timestamp.dtype != np.uint64:
+        timestamp = np.unint64(timestamp)
+        print('internally converted timestamp to uint64 for cython')
 
     if reverse:
         channel = channel[::-1]
         timestamp = timestamp[::-1]
 
-    syncchan = np.uint8(syncchan)
-    print('internally converted syncchan to uint8 for cython')
+    #syncchan = np.uint8(syncchan)
+    #print('internally converted syncchan to uint8 for cython')
 
     if reverse:
         return np.array(cysyncdiff(channel, timestamp, syncchan))[::-1]
@@ -172,18 +172,29 @@ def syncdiff(channel, timestamp, syncchan, reverse=False):
 @cython.cdivision
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef cysyncdiff(np.ndarray[np.uint8_t, ndim=1] channel,
-                np.ndarray[np.double_t, ndim=1] timestamp,
-                np.uint8_t syncchan):
-    cdef np.int_t last_t2_index = len(timestamp)
-    cdef np.int_t i
-    cdef np.double_t lastsync = timestamp[0]
-    cdef np.double_t[:] timediff = timestamp.copy()
+cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
+                np.ndarray[np.uint64_t, ndim=1] timestamp,
+                np.int32_t syncchan):
+    cdef np.uint64_t last_t2_index = len(timestamp)
+    cdef np.uint64_t i
+    cdef np.uint64_t lastsync = timestamp[0]
+    cdef np.uint64_t[:] timediff = timestamp.copy()
 
     for i in range(last_t2_index):
         if channel[i] == syncchan:
             lastsync = timestamp[i]
         else:
-            timediff[i] -= lastsync
+            timediff[i] = lastsync-timediff[i]
 
     return timediff
+
+
+
+
+
+
+
+
+
+
+
