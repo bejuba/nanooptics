@@ -14,6 +14,11 @@
 import numpy as _np
 import time
 
+def read_int32(fid, count=1):
+    return _np.fromfile(fid, count=count, dtype=_np.int32)
+def read_float32(fid, count=1):
+    return _np.fromfile(fid, count=count, dtype=_np.float32)
+
 def read_picoquant_legacy_header(fid):
     """
     read a picoharp legacy data file header.
@@ -24,96 +29,96 @@ def read_picoquant_legacy_header(fid):
     binary_header = dict()
     board_header = dict()
     t_mode_header = dict()
-
+    
     # read ascii header
-    ascii_header['Identifier'] = fid.read(16).decode('utf-8').replace('\x00', '')
-    ascii_header['Format Version'] = fid.read(6).decode('utf-8').replace('\x00', '')
+    ascii_header['Identifier'] = fid.read(16).decode('utf-8').strip('\0')
+    ascii_header['Format Version'] = fid.read(6).decode('utf-8').strip('\0')
     if ascii_header['Format Version'] != '2.0':
         print('Warning: This program is for version 2.0 files only.')
-    ascii_header['Creator Name'] = fid.read(18).decode('utf-8').replace('\x00', '')
-    ascii_header['Creator Version'] = fid.read(12).decode('utf-8').replace('\x00', '')
-    ascii_header['File Time'] = fid.read(18).decode('utf-8').replace('\x00', '')
-    ascii_header['CRLF'] = fid.read(2).decode('utf-8').replace('\x00', '')
-    ascii_header['Comment'] = fid.read(256).decode('utf-8').replace('\x00', '')
+    ascii_header['Creator Name'] = fid.read(18).decode('utf-8').strip('\0')
+    ascii_header['Creator Version'] = fid.read(12).decode('utf-8').strip('\0')
+    ascii_header['File Time'] = fid.read(18).decode('utf-8').strip('\0')
+    ascii_header['CRLF'] = fid.read(2).decode('utf-8').strip('\0')
+    ascii_header['Comment'] = fid.read(256).decode('utf-8').strip('\0')
 
     # read binary header
-    binary_header['Curves'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Bits per Record'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Rounting Channels'], =  _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Number of Boards'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Active Curve'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Measurement Mode'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Sub-Mode'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Range No.'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Offset / ns'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Acquisition Time / ms'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Stop at'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Stop on Overflow'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Restart'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Lin/Log'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Time Axis from'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Time Axis to'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Count Axis from'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Count Axis to'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Display Curve map to'] = _np.fromfile(fid, count=8, dtype=_np.int32)
-    binary_header['Display Curve show'] = _np.fromfile(fid, count=8, dtype=_np.int32)
-    binary_header['Param0'] = {'Start': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'Stop': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'End': _np.fromfile(fid, count=1, dtype=_np.float32)[0]
+    binary_header['Curves'], = read_int32(fid)
+    binary_header['Bits per Record'], = read_int32(fid)
+    binary_header['Rounting Channels'], =  read_int32(fid)
+    binary_header['Number of Boards'], = read_int32(fid)
+    binary_header['Active Curve'], = read_int32(fid)
+    binary_header['Measurement Mode'], = read_int32(fid)
+    binary_header['Sub-Mode'], = read_int32(fid)
+    binary_header['Range No.'], = read_int32(fid)
+    binary_header['Offset / ns'], = read_int32(fid)
+    binary_header['Acquisition Time / ms'], = read_int32(fid)
+    binary_header['Stop at'], = read_int32(fid)
+    binary_header['Stop on Overflow'], = read_int32(fid)
+    binary_header['Restart'], = read_int32(fid)
+    binary_header['Display Lin/Log'], = read_int32(fid)
+    binary_header['Display Time Axis from'], = read_int32(fid)
+    binary_header['Display Time Axis to'], = read_int32(fid)
+    binary_header['Display Count Axis from'], = read_int32(fid)
+    binary_header['Display Count Axis to'], = read_int32(fid)
+    binary_header['Display Curve map to'] = read_int32(fid, count=8)
+    binary_header['Display Curve show'] = read_int32(fid, count=8)
+    binary_header['Param0'] = {'Start': read_float32(fid)[0],
+                               'Stop': read_float32(fid)[0],
+                               'End': read_float32(fid)[0]
                                }
-    binary_header['Param1'] = {'Start': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'Stop': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'End': _np.fromfile(fid, count=1, dtype=_np.float32)[0]
+    binary_header['Param1'] = {'Start': read_float32(fid)[0],
+                               'Stop': read_float32(fid)[0],
+                               'End': read_float32(fid)[0]
                                }
-    binary_header['Param2'] = {'Start': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'Stop': _np.fromfile(fid, count=1, dtype=_np.float32)[0],
-                               'End': _np.fromfile(fid, count=1, dtype=_np.float32)[0]
+    binary_header['Param2'] = {'Start': read_float32(fid)[0],
+                               'Stop': read_float32(fid)[0],
+                               'End': read_float32(fid)[0]
                                }
-    binary_header['Repeat Mode'], =  _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Repeats per Curve'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Repeat Time'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Repeat Wait Time'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    binary_header['Script Name'] = fid.read(20).decode('utf-8').replace('\x00', '')
+    binary_header['Repeat Mode'], =  read_int32(fid)
+    binary_header['Repeats per Curve'], = read_int32(fid)
+    binary_header['Repeat Time'], = read_int32(fid)
+    binary_header['Repeat Wait Time'], = read_int32(fid)
+    binary_header['Script Name'] = fid.read(20).decode('utf-8').strip('\0')
 
     # read board specific header
-    board_header['Hardware Identifier'] = fid.read(16).decode('utf-8').replace('\x00', '')
-    board_header['Hardware Version'] = fid.read(8).decode('utf-8').replace('\x00', '')
-    board_header['Hardware Serial'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['Sync Divider'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['CFD ZeroCross (Ch0) / mV'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['CFD Dischr. (Ch0) / mV'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['CFD ZeroCross (Ch1) / mV'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['CFD Dischr. (Ch1) / mV'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['Resolution / ns'], = _np.fromfile(fid, count=1, dtype=_np.float32)
-    board_header['Router Model Code'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['Router Enabled'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    board_header['Rounter Ch1'] = {'Input Type': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Edge': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Present': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD ZeroCross / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
+    board_header['Hardware Identifier'] = fid.read(16).decode('utf-8').strip('\0')
+    board_header['Hardware Version'] = fid.read(8).decode('utf-8').strip('\0', )
+    board_header['Hardware Serial'], = read_int32(fid)
+    board_header['Sync Divider'], = read_int32(fid)
+    board_header['CFD ZeroCross (Ch0) / mV'], = read_int32(fid)
+    board_header['CFD Dischr. (Ch0) / mV'], = read_int32(fid)
+    board_header['CFD ZeroCross (Ch1) / mV'], = read_int32(fid)
+    board_header['CFD Dischr. (Ch1) / mV'], = read_int32(fid)
+    board_header['Resolution / ns'], = read_float32(fid)
+    board_header['Router Model Code'], = read_int32(fid)
+    board_header['Router Enabled'], = read_int32(fid)
+    board_header['Rounter Ch1'] = {'Input Type': read_int32(fid)[0],
+                                   'Input Level / mV': read_int32(fid)[0],
+                                   'Input Edge': read_int32(fid)[0],
+                                   'Input CFD Present': read_int32(fid)[0],
+                                   'Input CFD Level / mV': read_int32(fid)[0],
+                                   'Input CFD ZeroCross / mV': read_int32(fid)[0],
                                    }
-    board_header['Rounter Ch2'] = {'Input Type': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Edge': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Present': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD ZeroCross / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
+    board_header['Rounter Ch2'] = {'Input Type': read_int32(fid)[0],
+                                   'Input Level / mV': read_int32(fid)[0],
+                                   'Input Edge': read_int32(fid)[0],
+                                   'Input CFD Present': read_int32(fid)[0],
+                                   'Input CFD Level / mV': read_int32(fid)[0],
+                                   'Input CFD ZeroCross / mV': read_int32(fid)[0],
                                    }
-    board_header['Rounter Ch3'] = {'Input Type': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Edge': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Present': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD ZeroCross / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
+    board_header['Rounter Ch3'] = {'Input Type': read_int32(fid)[0],
+                                   'Input Level / mV': read_int32(fid)[0],
+                                   'Input Edge': read_int32(fid)[0],
+                                   'Input CFD Present': read_int32(fid)[0],
+                                   'Input CFD Level / mV': read_int32(fid)[0],
+                                   'Input CFD ZeroCross / mV': read_int32(fid)[0],
                                    }
-    board_header['Rounter Ch4'] = {'Input Type': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input Edge': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Present': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD Level / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
-                                   'Input CFD ZeroCross / mV': _np.fromfile(fid, count=1, dtype=_np.int32)[0],
+    board_header['Rounter Ch4'] = {'Input Type': read_int32(fid)[0],
+                                   'Input Level / mV': read_int32(fid)[0],
+                                   'Input Edge': read_int32(fid)[0],
+                                   'Input CFD Present': read_int32(fid)[0],
+                                   'Input CFD Level / mV': read_int32(fid)[0],
+                                   'Input CFD ZeroCross / mV': read_int32(fid)[0],
                                    }
 
     # Router settings are meaningful only for an existing router:
@@ -124,18 +129,18 @@ def read_picoquant_legacy_header(fid):
         del board_header['Rounter Ch4']
 
     # Read T mode specific header
-    t_mode_header['External Devices'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Reserved1'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Reserved2'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Count Rate (Ch0) / Hz'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Count Rate (Ch1) / Hz'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Stop after / ms'], = _np.fromfile(fid, count=1, dtype=_np.int32)
-    t_mode_header['Stop Reason'], = _np.fromfile(fid, count=1, dtype=_np.int32)
+    t_mode_header['External Devices'], = read_int32(fid)
+    t_mode_header['Reserved1'], = read_int32(fid)
+    t_mode_header['Reserved2'], = read_int32(fid)
+    t_mode_header['Count Rate (Ch0) / Hz'], = read_int32(fid)
+    t_mode_header['Count Rate (Ch1) / Hz'], = read_int32(fid)
+    t_mode_header['Stop after / ms'], = read_int32(fid)
+    t_mode_header['Stop Reason'], = read_int32(fid)
     t_mode_header['Number of Records'], = _np.fromfile(fid, count=1, dtype=_np.uint32)
 
     # Read special imaging header
     imaging_header_size, = _np.fromfile(fid, count=1, dtype=_np.uint32)
-    img_header = _np.fromfile(fid, count=imaging_header_size, dtype=_np.int32)
+    img_header = read_int32(fid, count=imaging_header_size)
 
     # combine headers
     header = {
@@ -186,20 +191,23 @@ def read_ptu_header(fid):
     }
 
     header = dict()
-    magic = fid.read(8).decode('utf-8').replace('\x00', '')
+    magic = fid.read(8).decode('utf-8').strip('\0')
     if magic != 'PQTTTR':
         raise IOError('Not a valid PTU file. '
                       'Magic: '.format(magic))
     header['Magic'] = magic
-    header['Version'] = fid.read(8).decode('utf-8').replace('\x00', '')
+    header['Version'] = fid.read(8).decode('utf-8').strip('\0')
 
     while True:
         # read tag header
-        tag_ident = fid.read(32).decode('utf-8').replace('\x00', '')
-        tag_idx = _np.fromfile(fid, count=1, dtype=_np.int32)[0]
+        tag_ident = fid.read(32).decode('utf-8').strip('\0')
+        tag_idx = read_int32(fid)[0]
+        if tag_idx >-1:
+            tag_ident += str(tag_idx) 
+        
         tag_type = tag_types[_np.fromfile(fid, count=1, dtype=_np.uint32)[0]]
         tag_data = None
-
+        
         # most tag_value types are int64 but some are double
         if (tag_type == 'tyFloat8') | (type == 'tyFloat8Array'):
             dtype = _np.double
@@ -207,31 +215,25 @@ def read_ptu_header(fid):
             dtype = _np.int64
 
         tag_value = _np.fromfile(fid, count=1, dtype=dtype)[0]
-
+        
         # Some tag types need additional conversion
-        if tag_type == 'tyFloat8':
-            tag_value = _np.int64(tag_value).view(_np.float64)
-        elif tag_type == 'tyBool8':
+        if tag_type == 'tyBool8':
             tag_value = bool(tag_value)
         elif tag_type == 'tyTDateTime':
             tag_value = convert_ptu_time(_np.uint64(tag_value).view(_np.float64))
-
+        
         # Some tag types have additional tag_data
-        if tag_type == 'tyAnsiString':
-            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
-        elif tag_type == 'tyFloat8Array':
-            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
-        elif tag_type == 'tyWideString':
-            tag_data = fid.read(tag_value).decode('utf-8').replace('\x00', '')
+        if tag_type in ['tyAnsiString', 'tyFloat8Array', 'tyWideString']:
+            tag_data = fid.read(tag_value).decode('utf-8').strip('\0')
         elif tag_type == 'tyBinaryBlob':
             tag_data = fid.read(tag_value)
         if tag_ident == "Header_End":
             break
-        header[tag_ident] = dict(tag_idx=tag_idx, tag_value=tag_value, tag_data=tag_data)
+        header[tag_ident] = tag_value
 
     # convert to readable rec type
-    rec_type = rec_types[header['TTResultFormat_TTTRRecType']['tag_value']]
-    header['TTResultFormat_TTTRRecType']['tag_value'] = rec_type
+    rec_type = rec_types[header['TTResultFormat_TTTRRecType']]
+    header['TTResultFormat_TTTRRecType'] = rec_type
     return header
 
 
@@ -363,6 +365,7 @@ def read_ht2_records(fid, records, version, resolution):
     
     
     records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
+    print('records: {}'.format(records.size))
     
     special = _np.bitwise_and(special_bits, records)
     special = special == special_bits
@@ -425,7 +428,7 @@ def read_ht3_records(fid, records, version, resolution):
     wraparound =  _np.uint64(nsync_bits+1)
     
     records = _np.fromfile(fid, count=records, dtype=_np.uint32)  # each record is composed of 32 bits
-
+    print('records: {}'.format(records.size))
     special = _np.bitwise_and(special_bits, records)
     special = special == special_bits
     
@@ -494,8 +497,8 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False, ignore_mar
 
         elif file_ending == '.ptu':
             header = read_ptu_header(fid)
-            number_of_records = header['TTResult_NumberOfRecords']['tag_value']
-            resolution = header['MeasDesc_GlobalResolution']['tag_value']
+            number_of_records = header['TTResult_NumberOfRecords']
+            resolution = header['MeasDesc_GlobalResolution']
         else:
             print('not a valid file. Only .pt2, .pt3 and .ptu files are supported!')
             return False
@@ -515,7 +518,7 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False, ignore_mar
             if file_ending == '.pt3':
                 [records, markers] = read_pt3_records(fid, records)
             if file_ending == '.ptu':
-                rec_type = header['TTResultFormat_TTTRRecType']['tag_value']
+                rec_type = header['TTResultFormat_TTTRRecType']
                 if rec_type == 'rtPicoHarpT3':
                     [records, markers] = read_pt3_records(fid, records)
                 elif rec_type == 'rtPicoHarpT2':
