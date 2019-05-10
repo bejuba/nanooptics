@@ -224,9 +224,9 @@ def read_ptu_header(fid):
         
         # Some tag types have additional tag_data
         if tag_type in ['tyAnsiString', 'tyFloat8Array', 'tyWideString']:
-            tag_data = fid.read(tag_value).decode('utf-8').strip('\0')
+            tag_value = fid.read(tag_value).decode('utf-8').strip('\0')
         elif tag_type == 'tyBinaryBlob':
-            tag_data = fid.read(tag_value)
+            tag_value = fid.read(tag_value)
         if tag_ident == "Header_End":
             break
         header[tag_ident] = tag_value
