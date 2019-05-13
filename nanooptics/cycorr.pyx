@@ -164,27 +164,34 @@ def syncdiff(channel, timestamp, syncchan, reverse=False):
     #print('internally converted syncchan to uint8 for cython')
 
     if reverse:
-        return np.array(cysyncdiff(channel, timestamp, syncchan))[::-1]
+        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))[::-1]
     else:
-        return np.array(cysyncdiff(channel, timestamp, syncchan))
+        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))
 
-
+    
 @cython.cdivision
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
                 np.ndarray[np.uint64_t, ndim=1] timestamp,
-                np.int32_t syncchan):
+                np.int32_t syncchan, reverse):
     cdef np.uint64_t last_t2_index = len(timestamp)
     cdef np.uint64_t i
     cdef np.uint64_t lastsync = timestamp[0]
     cdef np.uint64_t[:] timediff = timestamp.copy()
 
-    for i in range(last_t2_index):
-        if channel[i] == syncchan:
-            lastsync = timestamp[i]
-        else:
-            timediff[i] = lastsync-timediff[i]
+    if reverse:
+      for i in range(last_t2_index):
+          if channel[i] == syncchan:
+              lastsync = timestamp[i]
+          else:
+              timediff[i] = lastsync-timediff[i]
+    else:
+      for i in range(last_t2_index):
+          if channel[i] == syncchan:
+              lastsync = timestamp[i]
+          else:
+              timediff[i] -= lastsync
 
     return timediff
 
