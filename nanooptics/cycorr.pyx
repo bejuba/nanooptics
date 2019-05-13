@@ -153,7 +153,7 @@ def syncdiff(channel, timestamp, syncchan, reverse=False):
         channel = np.int32(channel)
         print('internally converted channel to int32 for cython')
     if timestamp.dtype != np.uint64:
-        timestamp = np.unint64(timestamp)
+        timestamp = np.uint64(timestamp)
         print('internally converted timestamp to uint64 for cython')
 
     if reverse:
@@ -197,4 +197,4 @@ cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
 
 
 
-
+
