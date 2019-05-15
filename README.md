@@ -15,3 +15,11 @@ cd nanooptics
 
 python setup.py install
 ```
+
+or using pip
+
+
+```
+pip install https://github.com/berndso/nanooptics/archive/master.zip
+
+```
