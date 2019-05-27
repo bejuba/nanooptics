@@ -16,7 +16,7 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
         g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = np.sqrt(g2)
     if normalize:
-        measurement_time = timestamp[-1]
+        measurement_time = timestamp[-1] - timestamp[0]
         counts0 = np.sum([channel == chan0])
         counts1 = np.sum([channel == chan1])
         # by default the result of _np.sum is an int32 this can lead to overflows when multiplying large count numbers
