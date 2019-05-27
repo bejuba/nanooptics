@@ -181,18 +181,17 @@ cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
     cdef np.uint64_t[:] timediff = timestamp.copy()
 
     if reverse:
-      for i in range(last_t2_index):
-          if channel[i] == syncchan:
-              lastsync = timestamp[i]
-          else:
-              timediff[i] = lastsync-timediff[i]
+        for i in range(last_t2_index):
+            if channel[i] == syncchan:
+                lastsync = timestamp[i]
+            else:
+                timediff[i] = lastsync-timediff[i]
     else:
-      for i in range(last_t2_index):
-          if channel[i] == syncchan:
-              lastsync = timestamp[i]
-          else:
-              timediff[i] -= lastsync
-
+        for i in range(last_t2_index):
+            if channel[i] == syncchan:
+                lastsync = timestamp[i]
+            else:
+                timediff[i] -= lastsync
     return timediff
 
 
