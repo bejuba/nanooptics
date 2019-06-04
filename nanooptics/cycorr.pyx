@@ -198,9 +198,3 @@ cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
 
 
 
-
-
-
-
-
-
