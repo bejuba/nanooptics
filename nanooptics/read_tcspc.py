@@ -397,9 +397,9 @@ def read_ht2_records(fid, records, version, resolution):
     channel = channel[~((ofl>0) | marker)]
     time = time[~((ofl>0) | marker)]
         
-    print('overflows: {}'.format(np.sum(ofl)))
-    print('syncs: {}'.format(np.sum(sync)))
-    print('markers: {}'.format(np.sum(marker)))
+    print('overflows: {}'.format(_np.sum(ofl)))
+    print('syncs: {}'.format(_np.sum(sync)))
+    print('markers: {}'.format(_np.sum(marker)))
     
     records = _np.rec.array([channel, time], 
                             dtype=[('channel', _np.uint8),
