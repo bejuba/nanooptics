@@ -149,11 +149,13 @@ cdef optcorr3(np.ndarray[np.int_t, ndim=1] channel,
 
 
 def syncdiff(channel, timestamp, syncchan, reverse=False):
+    res=1
     if channel.dtype != np.int32:
         channel = np.int32(channel)
         print('internally converted channel to int32 for cython')
     if timestamp.dtype != np.uint64:
-        timestamp = np.uint64(timestamp)
+        tconv = res=1e12
+        timestamp = np.uint64(timestamp*res)
         print('internally converted timestamp to uint64 for cython')
 
     if reverse:
@@ -164,9 +166,9 @@ def syncdiff(channel, timestamp, syncchan, reverse=False):
     #print('internally converted syncchan to uint8 for cython')
 
     if reverse:
-        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))[::-1]
+        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))[::-1]/res
     else:
-        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))
+        return np.array(cysyncdiff(channel, timestamp, syncchan, reverse))/res
 
     
 @cython.cdivision
