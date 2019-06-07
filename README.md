@@ -23,3 +23,14 @@ or using pip
 pip install https://github.com/berndso/nanooptics/archive/master.zip
 
 ```
+
+## fixing cython compiler errors 
+
+if your systems gcc is too new (e.g current arch linux installations), it might not work with the ld required for cython.
+if you are using a anaconda installation you can ensure that the anaconda compilers are getting used instead by installing them with:
+
+```
+conda install gxx_linux-64
+```
+see
+https://github.com/Anaconda-Platform/anaconda-project/issues/183
