@@ -122,7 +122,7 @@ def fit_g2(tau, g2, g2_error, bgfactor=0.1, tau0=0, t_antibunch=1e-9, a_bunch=[]
 
 
 def timetrace(timestamp, integration_time=100e-3, counts_per_second=True):
-    bins = _np.floor_divide(timestamp[-1],integration_time)
+    bins = _np.int(timestamp[-1]/integration_time)
     counts, t = _np.histogram(timestamp[timestamp < integration_time*bins], bins=bins)
     t = t[:-1]
     if counts_per_second:
