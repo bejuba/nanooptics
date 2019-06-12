@@ -126,7 +126,7 @@ def timetrace(timestamp, integration_time=100e-3, counts_per_second=True):
     counts, t = _np.histogram(timestamp[timestamp < integration_time*bins], bins=bins)
     t = t[:-1]
     if counts_per_second:
-        counts = counts * integration_time
+        counts = counts / integration_time
     return t, counts
 
 
