@@ -283,15 +283,14 @@ def read_pt2_records(fid, nrecords):
                                    ('timestamp', _np.float)])
     return records, markers
 
-def read_pt3_records(fid, nrecords):
+def read_pt3_records(fid, nrecords, resolution):
     """
     read a picoharp T3 Mode records.
     :param fid: input file handle
-    :param records: number of records to read
+    :param nrecords: number of records to read
+    :param resoluton: time resolution in seconds
     :return: data: record channel and timestamp numpy arrays
     """
-        
-    resolution = 4e-12  # 4 ps is the standard max resolution of the picoharp
     
     channel_bits = int('11110000000000000000000000000000', base=2)
     dtime_bits   = int('00001111111111110000000000000000', base=2)
@@ -495,6 +494,8 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False, ignore_mar
         if (file_ending == '.pt2') | (file_ending == '.pt3'):
             header = read_picoquant_legacy_header(fid)
             number_of_records = header['T_mode']['Number of Records']
+            if (file_ending == '.pt3'):
+                resolution = header['Board']['Resolution / ns'] *1e-9
 
         elif file_ending == '.ptu':
             header = read_ptu_header(fid)
@@ -517,11 +518,11 @@ def read_picoquant(s, records_per_split=_np.infty, save_as_npz=False, ignore_mar
             if file_ending == '.pt2':
                 [records, markers] = read_pt2_records(fid, records)
             if file_ending == '.pt3':
-                [records, markers] = read_pt3_records(fid, records)
+                [records, markers] = read_pt3_records(fid, records, resolution)
             if file_ending == '.ptu':
                 rec_type = header['TTResultFormat_TTTRRecType']
                 if rec_type == 'rtPicoHarpT3':
-                    [records, markers] = read_pt3_records(fid, records)
+                    [records, markers] = read_pt3_records(fid, records, resolution)
                 elif rec_type == 'rtPicoHarpT2':
                     [records, markers] = read_pt2_records(fid, records)
                     
