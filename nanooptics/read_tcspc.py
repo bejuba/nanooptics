@@ -321,15 +321,16 @@ def read_pt3_records(fid, nrecords):
     ofl = marker & (_np.bitwise_and(int('1111', base=2), nsync) == 0)
     # remove overflows from data:
     marker_channel = _np.bitwise_and(int('1111', base=2), dtime[marker & ~ofl])
-
+    
     nsync += _np.cumsum(ofl, dtype=_np.uint64) * wraparound
     nsync = nsync * resolution
-    dtime = dtime * resolution
-    
+    marker_time = nsync[marker & ~ofl]
+    marker_time = marker_time * resolution
+    dtime = dtime * resolution    
+    dtime = dtime[~ofl]
     channel = channel[~ofl]
     nsync = nsync[~ofl]
-    nsync = nsync * resolution
-    
+
     records = _np.rec.array([channel, nsync, dtime], 
                             dtype=[('channel', _np.uint8), 
                                    ('synctime', _np.float), 
