@@ -305,7 +305,7 @@ def read_pt3_records(fid, nrecords):
     channel = _np.uint8(_np.right_shift(channel, 28))
     
     dtime = _np.bitwise_and(dtime_bits, records)
-    dtime = _np.uint64(_np.right_shift(time, 16))
+    dtime = _np.uint64(_np.right_shift(dtime, 16))
     
     nsync = _np.bitwise_and(nsync_bits, records)
     nsync = _np.uint64(nsync)
