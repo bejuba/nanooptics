@@ -436,7 +436,7 @@ def read_ht3_records(fid, records, version, resolution):
     channel = _np.uint8(_np.right_shift(channel, 25))
     
     dtime = _np.bitwise_and(dtime_bits, records)
-    dtime = _np.uint64(_np.right_shift(time, 10))
+    dtime = _np.uint64(_np.right_shift(dtime, 10))
     
     nsync = _np.bitwise_and(nsync_bits, records)
     nsync = _np.uint64(nsync)
@@ -460,7 +460,7 @@ def read_ht3_records(fid, records, version, resolution):
     channel += ~special
     # remove overflows and markers from data:
     channel = channel[~((ofl>0) | marker)]
-    nsync = time[~((ofl>0) | marker)]
+    nsync = dtime[~((ofl>0) | marker)]
 
     print('overflows: {}'.format(np.sum(ofl)))
     print('syncs: {}'.format(np.sum(sync)))
