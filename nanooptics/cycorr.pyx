@@ -4,16 +4,18 @@ from cython.parallel import prange
 cimport cython
 
 
-def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True, parallelize = True):
+def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1, normalize=True, mode = 'standard'):
     if channel.dtype != 'uint8':
         channel = np.uint8(channel)
     timestamp = np.uint64(timestamp / resolution)
     cutofftime = np.uint64(cutofftime / resolution)
     t = (np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
-    if parallelize:
-        g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
-    else:
+    if mode = 'standard':
         g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
+    elif mode = 'parallel':
+        g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
+    elif mode = 'startstop':
+        g2 = optstartstop(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = np.sqrt(g2)
     if normalize:
         measurement_time = timestamp[-1] - timestamp[0]
@@ -197,6 +199,24 @@ cdef cysyncdiff(np.ndarray[np.int32_t, ndim=1] channel,
     return timediff
 
 
-
-
+@cython.cdivision
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef optstartstop(np.ndarray[np.uint8_t, ndim=1] channel,
+             np.ndarray[np.uint64_t, ndim=1] timestamp,
+             np.uint64_t cutofftime,
+             np.int_t chan0=0,
+             np.int_t chan1=1):
+    cdef int timestamp_len = len(timestamp)
+    cdef int i, j
+    cdef np.uint64_t tau 
+    cdef np.double_t[:] g2_unnormalized = np.zeros(cutofftime, dtype=np.double)
+   
+    for i in range(timestamp_len-1):
+        if channel[i] == chan0:
+            if channel[i+1] == chan1:
+                tau = timestamp[i+1] - timestamp[i]
+                if tau < cutofftime:
+                    g2_unnormalized[tau] += 1
+    return g2_unnormalized
 
