@@ -223,6 +223,6 @@ cdef optstartstop(np.ndarray[np.uint8_t, ndim=1] channel,
             if channel[i+1] == chan0:
                 tau = timestamp[i+1] - timestamp[i]
                 if tau < cutofftime:
-                    g2_unnormalized[cutofftie-tau] += 1
+                    g2_unnormalized[cutofftime-tau] += 1
     return g2_unnormalized
 
