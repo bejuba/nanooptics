@@ -10,11 +10,11 @@ def corr(channel, timestamp, cutofftime=1e-6, resolution=4e-12, chan0=0, chan1=1
     timestamp = np.uint64(timestamp / resolution)
     cutofftime = np.uint64(cutofftime / resolution)
     t = (np.arange(0, 2 * cutofftime) - cutofftime + 1) * resolution
-    if mode = 'standard':
+    if mode == 'standard':
         g2 = optcorr(channel, timestamp, cutofftime, chan0, chan1)
-    elif mode = 'parallel':
+    elif mode == 'parallel':
         g2 = poptcorr(channel, timestamp, cutofftime, chan0, chan1)
-    elif mode = 'startstop':
+    elif mode == 'startstop':
         g2 = optstartstop(channel, timestamp, cutofftime, chan0, chan1)
     g2_error = np.sqrt(g2)
     if normalize:
