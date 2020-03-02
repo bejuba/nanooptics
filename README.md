@@ -34,3 +34,7 @@ conda install gxx_linux-64
 ```
 see
 https://github.com/Anaconda-Platform/anaconda-project/issues/183
+
+## Examples
+
+the examples folder contains jupyter-notebooks and a tcspc smalll data set in the form of a .pt2 file measured with a picoharp as a starting point for common data evaluation schemes.
