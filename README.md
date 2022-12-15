@@ -9,7 +9,7 @@ Therefore simply cloning and installing should just work
 
 
 ```
-git clone https://github.com/berndso/nanooptics.git
+git clone https://github.com/bejuba/nanooptics.git
 
 cd nanooptics
 
@@ -20,7 +20,7 @@ or using pip
 
 
 ```
-pip install https://github.com/berndso/nanooptics/archive/master.zip
+pip install https://github.com/bejuba/nanooptics/archive/master.zip
 
 ```
 
